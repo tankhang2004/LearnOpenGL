@@ -55,11 +55,18 @@ void VertexSpecification() {
 	// generate and bind VAO
 	const std::vector<GLfloat> vertexData{ // lives on CPU
 		// x    y     z
-		-0.8f, -0.8f, 0.0f, // vertex 1
+		-0.5f, -0.5f, 0.0f, // left vertex 1
         1.0f, 0.0f, 0.0f, // Red for vertex 1
-		0.8f, -0.8f, 0.0f, // vertex 2
+		0.5f, -0.5f, 0.0f, // right vertex 2
         0.0f, 1.0f, 0.0f, // Green for vertex 2
-		0.0f, 0.8f, 0.0f, // vertex 3
+		-0.5f, 0.5f, 0.0f, // top left vertex 3
+        0.0f, 0.0f, 1.0f, // Blue for vertex 3
+        
+        0.5f, -0.5f, 0.0f, // right vertex 1
+        0.0f, 1.0f, 0.0f, // Red for vertex 1
+		0.5f, 0.5f, 0.0f, // top right vertex 2
+        0.0f, 0.0f, 1.0f, // Green for vertex 2
+		-0.5f, 0.5f, 0.0f, // left vertex 3
         0.0f, 0.0f, 1.0f // Blue for vertex 3
 	};
 	glGenVertexArrays(1, &gVertexArrayObject); // start sending to GPU
@@ -151,7 +158,7 @@ void PreDraw() {
 void Draw() {
 	glBindVertexArray(gVertexArrayObject);
 	glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 int main(int argc, char* args[])
