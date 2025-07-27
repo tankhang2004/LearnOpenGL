@@ -32,7 +32,21 @@ GLuint gIndexBufferObject = 0;
 // "{\n"
 // "    color = vec4(1.0f, 0.5f, 0.0, 1.0f);\n"
 // "}\n";
+//vvvvvvvvvvvvvvvError Handling Routinesvvvvvvvvvvvv
+static void GLClearAllErrors(){
+    while(glGetError() != GL_NO_ERROR){
 
+    }
+}
+static bool GLCheckErrorStatus(const char* function, int line){
+    while (GLenum error = glGetError()){
+        std::cout<<"OpenGL error"<<error<<"\tLine: "<<line<<"\tfunction: "<<function<<std::endl;
+        return true;
+    }
+    return false;
+}
+#define GLCheck(x) GLClearAllErrors(); x; GLCheckErrorStatus(#x,__LINE__);
+//^^^^^^^^^^^^^^^Error Handling Routines^^^^^^^^^^^^
 std::string LoadShaderAsString(const std::string& filename){
     std::string result = "";
     std::string line = "";
@@ -167,10 +181,10 @@ void PreDraw() {
 }
 
 void Draw() {
-	glBindVertexArray(gVertexArrayObject);
-	glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
+	GLCheck(glBindVertexArray(gVertexArrayObject);)
+	GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
 	// glDrawArrays(GL_TRIANGLES, 0, 6);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);
+    GLCheck(glDrawElements(GL_TRIANGLES, 6, GL_INT,0);)
 }
 
 int main(int argc, char* args[])
