@@ -12,7 +12,9 @@ int quit = 0;
 GLuint gVertexArrayObject = 0; // VAO
 GLuint gVertexBufferObject = 0; // VBO
 GLuint gGraphicsPipelineShaderProgram = 0; // store our shader object
-
+//Index Buffer Object
+//To store the array of indices that we want to draw from when we do indexed drawing.
+GLuint gIndexBufferObject = 0;
 // GLuint gVertexBufferObject2 = 0;     
 // example shaders
 // const std::string gVertexShaderSource =
@@ -62,12 +64,12 @@ void VertexSpecification() {
 		-0.5f, 0.5f, 0.0f, // top left vertex 3
         0.0f, 0.0f, 1.0f, // Blue for vertex 3
         
-        0.5f, -0.5f, 0.0f, // right vertex 1
-        0.0f, 1.0f, 0.0f, // Red for vertex 1
+        // 0.5f, -0.5f, 0.0f, // right vertex 1
+        // 0.0f, 1.0f, 0.0f, // Red for vertex 1
 		0.5f, 0.5f, 0.0f, // top right vertex 2
         0.0f, 0.0f, 1.0f, // Green for vertex 2
-		-0.5f, 0.5f, 0.0f, // left vertex 3
-        0.0f, 0.0f, 1.0f // Blue for vertex 3
+		// -0.5f, 0.5f, 0.0f, // left vertex 3
+        // 0.0f, 0.0f, 1.0f // Blue for vertex 3
 	};
 	glGenVertexArrays(1, &gVertexArrayObject); // start sending to GPU
 	glBindVertexArray(gVertexArrayObject);
@@ -76,6 +78,15 @@ void VertexSpecification() {
 	glGenBuffers(1, &gVertexBufferObject);
 	glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
 	glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(GLfloat), vertexData.data(), GL_STATIC_DRAW);
+    
+    const std::vector<GLuint> indexBufferData {
+        2,0,1,3,2,1
+    };
+    glGenBuffers(1,&gIndexBufferObject);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBufferObject);
+    //Populate our Index Buffer
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferData.size()*sizeof(GLuint), indexBufferData.data(),GL_STATIC_DRAW);
+
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT)*6, (void*)0);
     
@@ -158,7 +169,8 @@ void PreDraw() {
 void Draw() {
 	glBindVertexArray(gVertexArrayObject);
 	glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	// glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);
 }
 
 int main(int argc, char* args[])
