@@ -8,11 +8,19 @@
 #include <vector>
 #include <string>
 #include <fstream>
+
+#include "Camera.hpp"
 int gScreenWidth = 640;
 int gScreenHeight = 480;
 
 int quit = 0;
-float g_uOffset = 0.0f;
+float g_uOffset = -2.0f;
+float g_uRotate = 0.0f;
+float g_uScale = 0.5f;
+
+//Create a single camera
+Camera gCamera;
+
 GLuint gVertexArrayObject = 0; // VAO
 GLuint gVertexBufferObject = 0; // VBO
 GLuint gGraphicsPipelineShaderProgram = 0; // store our shader object
@@ -184,15 +192,29 @@ void PreDraw() {
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 	glUseProgram(gGraphicsPipelineShaderProgram);
+	g_uRotate -= 0.1f;
 	
 	//Model Transform
-	glm::mat4 translate = glm::translate(glm::mat4(1.0f),glm::vec3(0.0f,0.0f,g_uOffset));
+	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(0.0f,0.0f,g_uOffset));
+	//Update Model Matrix 
+	model = glm::rotate(model, glm::radians(g_uRotate), glm::vec3(0.0f,1.0f,0.0f));
+	model = glm::scale(model, glm::vec3(g_uScale, g_uScale, g_uScale));
 	GLint u_ModelMatrixLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_ModelMatrix");
 	if (u_ModelMatrixLocation>=0){
-		glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&translate[0][0]);
+		glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&model[0][0]);
 	} else
 	{
 		std::cout<<"Could not find u_ModelMatrix";
+		exit(EXIT_FAILURE);
+	}
+
+	glm::mat4 view = gCamera.GetViewMatrix();
+	GLint u_ViewLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_ViewMatrix");
+	if (u_ViewLocation>=0){
+		glUniformMatrix4fv(u_ViewLocation,1,GL_FALSE,&view[0][0]);
+	} else
+	{
+		std::cout<<"Could not find u_View";
 		exit(EXIT_FAILURE);
 	}
 	//Projection matrix
@@ -211,9 +233,10 @@ void PreDraw() {
 
 void Draw() {
 	GLCheck(glBindVertexArray(gVertexArrayObject);)
-	GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
+	// GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
 	// glDrawArrays(GL_TRIANGLES, 0, 6);
     GLCheck(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);)
+	glUseProgram(0);
 }
 
 int main(int argc, char* args[])
@@ -247,14 +270,30 @@ int main(int argc, char* args[])
 			if (e.type == SDL_QUIT)
 				quit = 1;
 		}
+		// g_uRotate -= 1.0f;
+		
 		const Uint8 *state = SDL_GetKeyboardState(NULL);
+
+		float speed = 0.01f;
 		if (state[SDL_SCANCODE_UP]) {
-			g_uOffset+=0.01f;
-			std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+			gCamera.MoveForward(speed);
+			// g_uOffset+=0.01f;
+			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
 		}
 		if (state[SDL_SCANCODE_DOWN]){
-			g_uOffset-=0.01f;
-			std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+			gCamera.MoveBackward(speed);
+			// g_uOffset-=0.01f;
+			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+		}
+		if (state[SDL_SCANCODE_LEFT]){
+			gCamera.MoveLeft(speed);
+			// g_uRotate+=0.01f;
+			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
+		}
+		if (state[SDL_SCANCODE_RIGHT]){
+			gCamera.MoveRight(speed);
+			// g_uRotate-=0.01f;
+			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
 		}
 		PreDraw();
 		Draw();
