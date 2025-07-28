@@ -1,5 +1,9 @@
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -8,13 +12,15 @@ int gScreenWidth = 640;
 int gScreenHeight = 480;
 
 int quit = 0;
-
+float g_uOffset = 0.0f;
 GLuint gVertexArrayObject = 0; // VAO
 GLuint gVertexBufferObject = 0; // VBO
 GLuint gGraphicsPipelineShaderProgram = 0; // store our shader object
 //Index Buffer Object
 //To store the array of indices that we want to draw from when we do indexed drawing.
 GLuint gIndexBufferObject = 0;
+
+// float g_uOffset = 0.0f;
 // GLuint gVertexBufferObject2 = 0;     
 // example shaders
 // const std::string gVertexShaderSource =
@@ -178,13 +184,36 @@ void PreDraw() {
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 	glUseProgram(gGraphicsPipelineShaderProgram);
+	
+	//Model Transform
+	glm::mat4 translate = glm::translate(glm::mat4(1.0f),glm::vec3(0.0f,0.0f,g_uOffset));
+	GLint u_ModelMatrixLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_ModelMatrix");
+	if (u_ModelMatrixLocation>=0){
+		glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&translate[0][0]);
+	} else
+	{
+		std::cout<<"Could not find u_ModelMatrix";
+		exit(EXIT_FAILURE);
+	}
+	//Projection matrix
+	glm::mat4 perspective = glm::perspective(glm::radians(45.0f),(float)gScreenWidth/(float)gScreenHeight,
+											0.1f,
+											10.0f);
+	GLint u_ProjectionLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_Projection");
+	if (u_ProjectionLocation>=0){
+		glUniformMatrix4fv(u_ProjectionLocation,1,GL_FALSE,&perspective[0][0]);
+	} else
+	{
+		std::cout<<"Could not find u_PerspectiveLocation";
+		exit(EXIT_FAILURE);
+	}
 }
 
 void Draw() {
 	GLCheck(glBindVertexArray(gVertexArrayObject);)
 	GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
 	// glDrawArrays(GL_TRIANGLES, 0, 6);
-    GLCheck(glDrawElements(GL_TRIANGLES, 6, GL_INT,0);)
+    GLCheck(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);)
 }
 
 int main(int argc, char* args[])
@@ -217,6 +246,15 @@ int main(int argc, char* args[])
 		while (SDL_PollEvent(&e) != 0) {
 			if (e.type == SDL_QUIT)
 				quit = 1;
+		}
+		const Uint8 *state = SDL_GetKeyboardState(NULL);
+		if (state[SDL_SCANCODE_UP]) {
+			g_uOffset+=0.01f;
+			std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+		}
+		if (state[SDL_SCANCODE_DOWN]){
+			g_uOffset-=0.01f;
+			std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
 		}
 		PreDraw();
 		Draw();
