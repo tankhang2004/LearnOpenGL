@@ -23,6 +23,8 @@ Camera mCamera;
 
 struct Transform{
 	float x,y,z;
+	glm::mat4 mModelMatrix{glm::mat4(1.0f)};
+
 };
 
 struct Mesh3D{
@@ -34,8 +36,8 @@ GLuint mIndexBufferObject = 0;
 GLuint mPipeline = 0;
 Transform mTransform;
 // float m_uOffset = -2.0f;
-float m_uRotate = 0.0f;
-float m_uScale = 0.5f;
+// float m_uRotate = 0.0f;
+// float m_uScale = 0.5f;
 
 };
 App gApp;
@@ -250,15 +252,9 @@ void MeshDraw(Mesh3D* mesh) {
 		return;
 	}
 	glUseProgram(mesh->mPipeline);
-	mesh->m_uRotate -= 0.1f;
 	
-	//Model Transform
-	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(mesh->mTransform.x,mesh->mTransform.y,mesh->mTransform.z));
-	//Update Model Matrix 
-	model = glm::rotate(model, glm::radians(mesh->m_uRotate), glm::vec3(0.0f,1.0f,0.0f));
-	model = glm::scale(model, glm::vec3(mesh->m_uScale, mesh->m_uScale, mesh->m_uScale));
 	GLuint u_ModelMatrixLocation = FindUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ModelMatrix");
-	glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&model[0][0]);
+	glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&mesh->mTransform.mModelMatrix[0][0]);
 
 	//View Matrix
 	glm::mat4 view = gApp.mCamera.GetViewMatrix();
@@ -280,6 +276,23 @@ void MeshDraw(Mesh3D* mesh) {
 	glUseProgram(0);
 }
 
+void MeshTranslate(Mesh3D* mesh, float x, float y, float z){
+	//Model Transform
+	mesh->mTransform.mModelMatrix = glm::translate(mesh->mTransform.mModelMatrix,glm::vec3(x,y,z));
+}
+void MeshRotate(Mesh3D* mesh, float angle, glm::vec3 axis)
+{
+	mesh->mTransform.mModelMatrix = glm::rotate(mesh->mTransform.mModelMatrix,glm::radians(angle),axis);
+}
+void MeshScale(Mesh3D* mesh, float x, float y, float z)
+{
+	mesh->mTransform.mModelMatrix = glm::scale(mesh->mTransform.mModelMatrix,glm::vec3(x,y,z));
+}
+// 	mesh->m_uRotate -= 0.1f;
+// 	//Update Model Matrix 
+// 	model = glm::rotate(model, glm::radians(mesh->m_uRotate), glm::vec3(0.0f,1.0f,0.0f));
+// 	model = glm::scale(model, glm::vec3(mesh->m_uScale, mesh->m_uScale, mesh->m_uScale));
+// }
 int main(int argc, char* args[])
 {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -303,13 +316,9 @@ int main(int argc, char* args[])
 		else {
 			PrintHWInfo();
 			MeshCreate(&gMesh1);
-			gMesh1.mTransform.x = 0.0f;
-			gMesh1.mTransform.y = 0.0f;
-			gMesh1.mTransform.z = -2.0f;
+			MeshTranslate(&gMesh1,0.0f, 0.0f, -2.0f);
 			MeshCreate(&gMesh2);
-			gMesh2.mTransform.x = 0.0f;
-			gMesh2.mTransform.y = 0.0f;
-			gMesh2.mTransform.z = -4.0f;
+			MeshTranslate(&gMesh2,0.0f, 0.0f, -4.0f);
 
 			CreateGraphicsPipeline();
 			MeshSetPipeline(&gMesh1, gApp.mGraphicsPipelineShaderProgram);
@@ -332,6 +341,9 @@ int main(int argc, char* args[])
 
 		// MeshUpdate(&gMesh1);
 		// MeshUpdate(&gMesh2);
+		static float rotate = 0.0f;
+		rotate+= 0.05f;
+		MeshRotate(&gMesh1,rotate,glm::vec3(0.0f,1.0f,0.0f));
 		MeshDraw(&gMesh1);
 		MeshDraw(&gMesh2);
 		SDL_GL_SwapWindow(gApp.mGraphicsApplicationWindow);
