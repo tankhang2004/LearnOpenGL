@@ -9,8 +9,17 @@
         mViewDirection = glm::vec3(0.0f, 0.0f, -1.0f);
         mUpVector = glm::vec3(0.0f, 1.0f, 0.0f);
     }
+    void Camera::SetProjectionMatrix(float fovy, float aspect, float near, float far)
+    {
+        mProjectionMatrix = glm::perspective(fovy,aspect,near,far);
+    }
+
     glm::mat4 Camera::GetViewMatrix() const{
         return glm::lookAt(mEye, mEye + mViewDirection, mUpVector);
+    }
+    glm::mat4 Camera::GetProjectionMatrix() const{
+	    return mProjectionMatrix;
+        
     }
     void Camera::MouseLook(int mouseX, int mouseY){
         std::cout<<"mouse: "<<mouseX<<","<<mouseY<<std::endl;

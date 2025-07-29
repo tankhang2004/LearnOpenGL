@@ -232,42 +232,15 @@ void MeshUpdate(Mesh3D* mesh) {
 
 	// glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(mesh->mPipeline);
-	mesh->m_uRotate -= 0.1f;
-	
-	//Model Transform
-	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(mesh->mTransform.x,mesh->mTransform.y,mesh->mTransform.z));
-	//Update Model Matrix 
-	model = glm::rotate(model, glm::radians(mesh->m_uRotate), glm::vec3(0.0f,1.0f,0.0f));
-	model = glm::scale(model, glm::vec3(mesh->m_uScale, mesh->m_uScale, mesh->m_uScale));
-	GLint u_ModelMatrixLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ModelMatrix");
-	if (u_ModelMatrixLocation>=0){
-		glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&model[0][0]);
-	} else
-	{
-		std::cout<<"Could not find u_ModelMatrix";
-		exit(EXIT_FAILURE);
-	}
 
-	glm::mat4 view = gApp.mCamera.GetViewMatrix();
-	GLint u_ViewLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ViewMatrix");
-	if (u_ViewLocation>=0){
-		glUniformMatrix4fv(u_ViewLocation,1,GL_FALSE,&view[0][0]);
-	} else
-	{
-		std::cout<<"Could not find u_View";
-		exit(EXIT_FAILURE);
-	}
-	//Projection matrix
-	glm::mat4 perspective = glm::perspective(glm::radians(45.0f),(float)gApp.mScreenWidth/(float)gApp.mScreenHeight,
-											0.1f,
-											10.0f);
-	GLint u_ProjectionLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_Projection");
-	if (u_ProjectionLocation>=0){
-		glUniformMatrix4fv(u_ProjectionLocation,1,GL_FALSE,&perspective[0][0]);
-	} else
-	{
-		std::cout<<"Could not find u_PerspectiveLocation";
+}
+
+int FindUniformLocation(GLuint pipeline, const GLchar* name){
+	GLint location = glGetUniformLocation(pipeline, name);
+	if (location >= 0){
+		return location;
+	} else {
+		std::cerr<<"could not find "<<name<<std::endl;
 		exit(EXIT_FAILURE);
 	}
 }
@@ -277,6 +250,29 @@ void MeshDraw(Mesh3D* mesh) {
 		return;
 	}
 	glUseProgram(mesh->mPipeline);
+	mesh->m_uRotate -= 0.1f;
+	
+	//Model Transform
+	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(mesh->mTransform.x,mesh->mTransform.y,mesh->mTransform.z));
+	//Update Model Matrix 
+	model = glm::rotate(model, glm::radians(mesh->m_uRotate), glm::vec3(0.0f,1.0f,0.0f));
+	model = glm::scale(model, glm::vec3(mesh->m_uScale, mesh->m_uScale, mesh->m_uScale));
+	GLuint u_ModelMatrixLocation = FindUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ModelMatrix");
+	glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&model[0][0]);
+
+	//View Matrix
+	glm::mat4 view = gApp.mCamera.GetViewMatrix();
+	GLint u_ViewLocation = FindUniformLocation(gApp.mGraphicsPipelineShaderProgram,"u_ViewMatrix");
+	glUniformMatrix4fv(u_ViewLocation,1,GL_FALSE,&view[0][0]);
+
+	//Projection matrix
+	glm::mat4 perspective = gApp.mCamera.GetProjectionMatrix();
+	// glm::mat4 perspective = glm::perspective(glm::radians(45.0f),(float)gApp.mScreenWidth/(float)gApp.mScreenHeight,
+											// 0.1f,
+											// 10.0f);
+	GLint u_ProjectionLocation = FindUniformLocation(gApp.mGraphicsPipelineShaderProgram,"u_Projection");
+	glUniformMatrix4fv(u_ProjectionLocation,1,GL_FALSE,&perspective[0][0]);
+
 	GLCheck(glBindVertexArray(mesh->mVertexArrayObject);)
 	// GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
 	// glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -292,6 +288,8 @@ int main(int argc, char* args[])
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	//Setup the camera
+	gApp.mCamera.SetProjectionMatrix(glm::radians(45.0f), (float)gApp.mScreenWidth/(float)gApp.mScreenHeight, 0.1f, 10.0f);
 
 	gApp.mGraphicsApplicationWindow = SDL_CreateWindow("hello", 10, 50, gApp.mScreenWidth, gApp.mScreenHeight, SDL_WINDOW_OPENGL);
 	if (SDL_GL_CreateContext(gApp.mGraphicsApplicationWindow) == NULL) {
@@ -332,8 +330,8 @@ int main(int argc, char* args[])
 
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-		MeshUpdate(&gMesh1);
-		MeshUpdate(&gMesh2);
+		// MeshUpdate(&gMesh1);
+		// MeshUpdate(&gMesh2);
 		MeshDraw(&gMesh1);
 		MeshDraw(&gMesh2);
 		SDL_GL_SwapWindow(gApp.mGraphicsApplicationWindow);
