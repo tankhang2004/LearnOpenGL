@@ -10,43 +10,37 @@
 #include <fstream>
 
 #include "Camera.hpp"
-int gScreenWidth = 640;
-int gScreenHeight = 480;
 
-int quit = 0;
-float g_uOffset = -2.0f;
-float g_uRotate = 0.0f;
-float g_uScale = 0.5f;
+struct App{
+int mScreenWidth = 1728;
+int mScreenHeight = 1117;
+SDL_Window* mGraphicsApplicationWindow = nullptr;
+SDL_GLContext mOpenGLContext = nullptr;
+int mQuit = 0;
+GLuint mGraphicsPipelineShaderProgram = 0; // store our shader object
+Camera mCamera;
+};
 
-//Create a single camera
-Camera gCamera;
+struct Transform{
+	float x,y,z;
+};
 
-GLuint gVertexArrayObject = 0; // VAO
-GLuint gVertexBufferObject = 0; // VBO
-GLuint gGraphicsPipelineShaderProgram = 0; // store our shader object
+struct Mesh3D{
+GLuint mVertexArrayObject = 0; // VAO
+GLuint mVertexBufferObject = 0; // VBO
 //Index Buffer Object
 //To store the array of indices that we want to draw from when we do indexed drawing.
-GLuint gIndexBufferObject = 0;
+GLuint mIndexBufferObject = 0;
+GLuint mPipeline = 0;
+Transform mTransform;
+// float m_uOffset = -2.0f;
+float m_uRotate = 0.0f;
+float m_uScale = 0.5f;
 
-// float g_uOffset = 0.0f;
-// GLuint gVertexBufferObject2 = 0;     
-// example shaders
-// const std::string gVertexShaderSource =
-// "#version 410 core\n"
-// "in vec4 position;\n"
-// "void main()\n"
-// "{\n"
-// "    gl_Position = vec4(position.x, position.y, position.z, position.w);\n"
-// "}\n";
-
-// const std::string gFragmentShaderSource =
-// "#version 410 core\n"
-// "out vec4 color;\n"
-// "void main()\n"
-// "{\n"
-// "    color = vec4(1.0f, 0.5f, 0.0, 1.0f);\n"
-// "}\n";
-//vvvvvvvvvvvvvvvError Handling Routinesvvvvvvvvvvvv
+};
+App gApp;
+Mesh3D gMesh1;
+Mesh3D gMesh2;
 static void GLClearAllErrors(){
     while(glGetError() != GL_NO_ERROR){
 
@@ -81,7 +75,7 @@ void PrintHWInfo() {
 	std::cout << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 }
 
-void VertexSpecification() {
+void MeshCreate(Mesh3D* mesh) {
 	// generate and bind VAO
 	const std::vector<GLfloat> vertexData{ // lives on CPU
 		// x    y     z
@@ -99,19 +93,19 @@ void VertexSpecification() {
 		// -0.5f, 0.5f, 0.0f, // left vertex 3
         // 0.0f, 0.0f, 1.0f // Blue for vertex 3
 	};
-	glGenVertexArrays(1, &gVertexArrayObject); // start sending to GPU
-	glBindVertexArray(gVertexArrayObject);
+	glGenVertexArrays(1, &mesh->mVertexArrayObject); // start sending to GPU
+	glBindVertexArray(mesh->mVertexArrayObject);
 
 	// Setup position buffer (attribute 0)
-	glGenBuffers(1, &gVertexBufferObject);
-	glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);
+	glGenBuffers(1, &mesh->mVertexBufferObject);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->mVertexBufferObject);
 	glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(GLfloat), vertexData.data(), GL_STATIC_DRAW);
     
     const std::vector<GLuint> indexBufferData {
         2,0,1,3,2,1
     };
-    glGenBuffers(1,&gIndexBufferObject);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBufferObject);
+    glGenBuffers(1,&mesh->mIndexBufferObject);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->mIndexBufferObject);
     //Populate our Index Buffer
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferData.size()*sizeof(GLuint), indexBufferData.data(),GL_STATIC_DRAW);
 
@@ -127,6 +121,15 @@ void VertexSpecification() {
 	glBindVertexArray(0);
 	glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
+}
+
+void MeshDelete(Mesh3D* mesh){
+	glDeleteBuffers(1,&mesh->mVertexBufferObject);
+	glDeleteVertexArrays(1,&mesh->mVertexArrayObject);
+
+}
+void MeshSetPipeline(Mesh3D* mesh, GLuint pipeline){
+	mesh->mPipeline = pipeline;
 }
 
 GLuint CompileShader(GLuint type, const std::string& source) {
@@ -180,26 +183,64 @@ void CreateGraphicsPipeline() {
     std::cout << "Vertex shader loaded: " << (vertexShaderSource.empty() ? "FAILED" : "SUCCESS") << std::endl;
     std::cout << "Fragment shader loaded: " << (fragmentShaderSource.empty() ? "FAILED" : "SUCCESS") << std::endl;
     
-	gGraphicsPipelineShaderProgram = CreateShaderProgram(vertexShaderSource, fragmentShaderSource);
+	gApp.mGraphicsPipelineShaderProgram = CreateShaderProgram(vertexShaderSource, fragmentShaderSource);
 }
+void Input(){
+	static int mouseX = gApp.mScreenWidth/2;
+	static int mouseY = gApp.mScreenHeight/2;
+SDL_Event e;
+		while (SDL_PollEvent(&e) != 0) {
+			if (e.type == SDL_QUIT) {
+				gApp.mQuit = 1;
+			} else if (e.type == SDL_MOUSEMOTION) {
+				mouseX += e.motion.xrel;
+				mouseY += e.motion.yrel;
+				gApp.mCamera.MouseLook(mouseX, mouseY);
+			}
+		}
+		// g_uRotate -= 1.0f;
+		
+		const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-void PreDraw() {
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glViewport(0, 0, gScreenWidth, gScreenHeight);
-	glClearColor(1.f, 1.f, 0.f, 1.f);
+		float speed = 0.01f;
+		if (state[SDL_SCANCODE_UP]) {
+			gApp.mCamera.MoveForward(speed);
+			// g_uOffset+=0.01f;
+			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+		}
+		if (state[SDL_SCANCODE_DOWN]){
+			gApp.mCamera.MoveBackward(speed);
+			// g_uOffset-=0.01f;
+			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
+		}
+		if (state[SDL_SCANCODE_LEFT]){
+			gApp.mCamera.MoveLeft(speed);
+			// g_uRotate+=0.01f;
+			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
+		}
+		if (state[SDL_SCANCODE_RIGHT]){
+			gApp.mCamera.MoveRight(speed);
+			// g_uRotate-=0.01f;
+			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
+		}
+}
+void MeshUpdate(Mesh3D* mesh) {
+	// glDisable(GL_DEPTH_TEST);
+	// glDisable(GL_CULL_FACE);
+	// glViewport(0, 0, gApp.mScreenWidth, gApp.mScreenHeight);
+	// glClearColor(1.f, 1.f, 0.f, 1.f);
 
-	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+	// glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(gGraphicsPipelineShaderProgram);
-	g_uRotate -= 0.1f;
+	glUseProgram(mesh->mPipeline);
+	mesh->m_uRotate -= 0.1f;
 	
 	//Model Transform
-	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(0.0f,0.0f,g_uOffset));
+	glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(mesh->mTransform.x,mesh->mTransform.y,mesh->mTransform.z));
 	//Update Model Matrix 
-	model = glm::rotate(model, glm::radians(g_uRotate), glm::vec3(0.0f,1.0f,0.0f));
-	model = glm::scale(model, glm::vec3(g_uScale, g_uScale, g_uScale));
-	GLint u_ModelMatrixLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_ModelMatrix");
+	model = glm::rotate(model, glm::radians(mesh->m_uRotate), glm::vec3(0.0f,1.0f,0.0f));
+	model = glm::scale(model, glm::vec3(mesh->m_uScale, mesh->m_uScale, mesh->m_uScale));
+	GLint u_ModelMatrixLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ModelMatrix");
 	if (u_ModelMatrixLocation>=0){
 		glUniformMatrix4fv(u_ModelMatrixLocation,1,GL_FALSE,&model[0][0]);
 	} else
@@ -208,8 +249,8 @@ void PreDraw() {
 		exit(EXIT_FAILURE);
 	}
 
-	glm::mat4 view = gCamera.GetViewMatrix();
-	GLint u_ViewLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_ViewMatrix");
+	glm::mat4 view = gApp.mCamera.GetViewMatrix();
+	GLint u_ViewLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_ViewMatrix");
 	if (u_ViewLocation>=0){
 		glUniformMatrix4fv(u_ViewLocation,1,GL_FALSE,&view[0][0]);
 	} else
@@ -218,10 +259,10 @@ void PreDraw() {
 		exit(EXIT_FAILURE);
 	}
 	//Projection matrix
-	glm::mat4 perspective = glm::perspective(glm::radians(45.0f),(float)gScreenWidth/(float)gScreenHeight,
+	glm::mat4 perspective = glm::perspective(glm::radians(45.0f),(float)gApp.mScreenWidth/(float)gApp.mScreenHeight,
 											0.1f,
 											10.0f);
-	GLint u_ProjectionLocation = glGetUniformLocation(gGraphicsPipelineShaderProgram, "u_Projection");
+	GLint u_ProjectionLocation = glGetUniformLocation(gApp.mGraphicsPipelineShaderProgram, "u_Projection");
 	if (u_ProjectionLocation>=0){
 		glUniformMatrix4fv(u_ProjectionLocation,1,GL_FALSE,&perspective[0][0]);
 	} else
@@ -231,8 +272,12 @@ void PreDraw() {
 	}
 }
 
-void Draw() {
-	GLCheck(glBindVertexArray(gVertexArrayObject);)
+void MeshDraw(Mesh3D* mesh) {
+	if (mesh == nullptr){
+		return;
+	}
+	glUseProgram(mesh->mPipeline);
+	GLCheck(glBindVertexArray(mesh->mVertexArrayObject);)
 	// GLCheck(glBindBuffer(GL_ARRAY_BUFFER, gVertexBufferObject);)
 	// glDrawArrays(GL_TRIANGLES, 0, 6);
     GLCheck(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);)
@@ -248,8 +293,8 @@ int main(int argc, char* args[])
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-	SDL_Window* win = SDL_CreateWindow("hello", 10, 50, 640, 480, SDL_WINDOW_OPENGL);
-	if (SDL_GL_CreateContext(win) == NULL) {
+	gApp.mGraphicsApplicationWindow = SDL_CreateWindow("hello", 10, 50, gApp.mScreenWidth, gApp.mScreenHeight, SDL_WINDOW_OPENGL);
+	if (SDL_GL_CreateContext(gApp.mGraphicsApplicationWindow) == NULL) {
 		std::cout << "OpenGL context failed: " << SDL_GetError() << std::endl;
 	}
 	else {
@@ -259,48 +304,45 @@ int main(int argc, char* args[])
 		}
 		else {
 			PrintHWInfo();
-			VertexSpecification();
+			MeshCreate(&gMesh1);
+			gMesh1.mTransform.x = 0.0f;
+			gMesh1.mTransform.y = 0.0f;
+			gMesh1.mTransform.z = -2.0f;
+			MeshCreate(&gMesh2);
+			gMesh2.mTransform.x = 0.0f;
+			gMesh2.mTransform.y = 0.0f;
+			gMesh2.mTransform.z = -4.0f;
+
 			CreateGraphicsPipeline();
+			MeshSetPipeline(&gMesh1, gApp.mGraphicsPipelineShaderProgram);
+			MeshSetPipeline(&gMesh2, gApp.mGraphicsPipelineShaderProgram);
 		}
 	}
+	//Store the current mouse position
+	// int mouseX, mouseY;
+	SDL_WarpMouseInWindow(gApp.mGraphicsApplicationWindow, gApp.mScreenWidth/2, gApp.mScreenHeight/2);
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+	while (gApp.mQuit == 0) {
+		Input();	
+		//Update our mesh
+			glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glViewport(0, 0, gApp.mScreenWidth, gApp.mScreenHeight);
+	glClearColor(1.f, 1.f, 0.f, 1.f);
 
-	while (quit == 0) {
-		SDL_Event e;
-		while (SDL_PollEvent(&e) != 0) {
-			if (e.type == SDL_QUIT)
-				quit = 1;
-		}
-		// g_uRotate -= 1.0f;
-		
-		const Uint8 *state = SDL_GetKeyboardState(NULL);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-		float speed = 0.01f;
-		if (state[SDL_SCANCODE_UP]) {
-			gCamera.MoveForward(speed);
-			// g_uOffset+=0.01f;
-			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
-		}
-		if (state[SDL_SCANCODE_DOWN]){
-			gCamera.MoveBackward(speed);
-			// g_uOffset-=0.01f;
-			// std::cout<<"g_uOffset: "<<g_uOffset<<std::endl;
-		}
-		if (state[SDL_SCANCODE_LEFT]){
-			gCamera.MoveLeft(speed);
-			// g_uRotate+=0.01f;
-			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
-		}
-		if (state[SDL_SCANCODE_RIGHT]){
-			gCamera.MoveRight(speed);
-			// g_uRotate-=0.01f;
-			// std::cout<<"g_uRotate: "<<g_uRotate<<std::endl;
-		}
-		PreDraw();
-		Draw();
-		SDL_GL_SwapWindow(win);
+		MeshUpdate(&gMesh1);
+		MeshUpdate(&gMesh2);
+		MeshDraw(&gMesh1);
+		MeshDraw(&gMesh2);
+		SDL_GL_SwapWindow(gApp.mGraphicsApplicationWindow);
 	}
 
-	SDL_DestroyWindow(win);
+	SDL_DestroyWindow(gApp.mGraphicsApplicationWindow);
+	gApp.mGraphicsApplicationWindow = nullptr;
+	MeshDelete(&gMesh1);	
+	glDeleteProgram(gApp.mGraphicsPipelineShaderProgram);
 	SDL_Quit();
 	return 0;
 }
